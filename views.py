@@ -15,11 +15,6 @@ admin.add_view((ModelView(TypeEvent, db.session)))
 admin.add_view((ModelView(Category, db.session)))
 
 
-@app.route('/')
-def index():
-    return 'Hello word!'
-
-
 # GET /locations/ – выводит список городов или локаций
 @app.route('/locations/')
 def locations():
@@ -61,7 +56,7 @@ def enrollments_add():
     return jsonify({"status": "success"})
 
 
-# GET /enrollments/1/
+# GET /enrollments/<enrollment_ID> - выводит список зарегистрированных пользователей на эвент
 @app.route('/enrollments/<int:id>/')
 def enrollments_show(id):
     event = db.session.query(Event).get(id)
@@ -70,9 +65,30 @@ def enrollments_show(id):
     return jsonify(serialized)
 
 
+# GET /enrollments/ - выводит список эвентов у зарегистрированного пользователя
+@app.route('/enrollments/')
+@jwt_required
+def enrollments_participants():
+    user = db.session.query(Participant).get(get_jwt_identity())
+    events = EventSchema(many=True)
+    serialized = events.dump(user.events)
+    return jsonify(serialized)
+
+
 # DELETE /enrollments/ id=<eventid> – отзывает заявку на участие в событии
 @app.route('/enrollments/', methods=['DELETE'])
+@jwt_required
 def enrollments_del():
+    if not request.is_json:
+        return abort(404)
+    user = db.session.query(Participant).get(get_jwt_identity())
+    json_data = request.get_json()
+    event = db.session.query(Event).get_or_404(json_data['id'])
+    if user in event.participants:
+        event.participants.remove(user)
+        db.session.commit()
+    else:
+        return abort(404)
     return jsonify({"status": "success"})
 
 
@@ -81,22 +97,30 @@ def enrollments_del():
 def register():
     json_data = request.get_json()
     if json_data:
-        if db.session.query(Participant).filter(Participant.email == json_data['email']).first():
-            return jsonify({"status": "error - user already exist"})
+        if db.session.query(Participant).filter(Participant.email == json_data.get('email')).first():
+            return jsonify({"status": "error"})
         user = Participant(**json_data)
-        db.session.add(user)
-        db.session.commit()
-        return jsonify({"status": "ok", "id": user.id})
-    return jsonify({"status": "error"}), 500
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except:
+            return jsonify({"status": "error"})
+        usershema = ParticipantsSchema()
+        serialized = usershema.dump(user)
+        serialized.update(dict(password=json_data.get('password')))
+        return jsonify(serialized)
+    return jsonify({"status": "error1"}), 500
 
 
 # POST /auth/ – проводит аутентификацию пользователя
 @app.route('/auth/', methods=['POST'])
 def auth():
+    if not request.is_json:
+        return abort(404)
     json_data = request.get_json()
     email = json_data.get('email')
     password = json_data.get('password')
-    user = db.session.query(Participant).filter(Participant.email == email).first()
+    user = db.session.query(Participant).filter(Participant.email == email).first_or_404()
     if user and user.password_valid(password):
         user_schema = ParticipantsSchema(exclude=['password'])
         serialized = user_schema.dump(user)
