@@ -1,6 +1,6 @@
 import pandas as pd
 from flask_sqlalchemy import SQLAlchemy
-from models import Event, Location, Category, Type, create_app, db
+from models import Event, Location, Category, TypeEvent, create_app, db
 from datetime import datetime
 
 app = create_app()
@@ -36,7 +36,7 @@ for row in categories.values.tolist():
     db.session.add(cat)
 
 for row in types.values.tolist():
-    type = Type(
+    type = TypeEvent(
         code=row[0],
         title=row[1]
     )
@@ -61,7 +61,7 @@ for idx, row in events.iterrows():
         event.locations.append(loc)
 
     for type in row['type'].split():
-        q = db.session.query(Type).filter(Type.code == type.strip(', ')).first()
+        q = db.session.query(TypeEvent).filter(TypeEvent.code == type.strip(', ')).first()
         event.types.append(q)
 
     for cat in row['category'].split():

@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask
 from datetime import datetime
+from werkzeug.security import check_password_hash, generate_password_hash
 
 db = SQLAlchemy()
 
@@ -62,10 +63,21 @@ class Participant(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(128), nullable=False)
-    password = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
     picture = db.Column(db.String(64000), nullable=False)
     location = db.Column(db.String(128), nullable=False)
     about = db.Column(db.String(512), nullable=False)
+
+    @property
+    def password(self):
+        raise AttributeError("Вам не нужно знать пароль!")
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def password_valid(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 # Таблица Location – города

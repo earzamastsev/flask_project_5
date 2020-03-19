@@ -2,6 +2,7 @@ from app import app
 from flask import render_template, jsonify, request, abort
 from schemas import LocationSchema, EventSchema, ParticipantsSchema, TypeSchema
 from models import db, Location, Event, Participant, TypeEvent
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 
 @app.route('/')
@@ -40,8 +41,23 @@ def events():
 
 # POST /enrollments/ – принимает заявку на участие в событии
 @app.route('/enrollments/', methods=['POST'])
+@jwt_required
 def enrollments_add():
+    user = db.session.query(Participant).get(get_jwt_identity())
+    json_data = request.get_json()
+    event = db.session.query(Event).get_or_404(json_data['id'])
+    event.participants.append(user)
+    db.session.commit()
     return jsonify({"status": "success"})
+
+
+# GET /enrollments/1/
+@app.route('/enrollments/<int:id>/')
+def enrollments_show(id):
+    event = db.session.query(Event).get(id)
+    users = ParticipantsSchema(many=True)
+    serialized = users.dump(event.participants)
+    return jsonify(serialized)
 
 
 # DELETE /enrollments/ id=<eventid> – отзывает заявку на участие в событии
@@ -67,7 +83,17 @@ def register():
 # POST /auth/ – проводит аутентификацию пользователя
 @app.route('/auth/', methods=['POST'])
 def auth():
-    return jsonify({"status": "success", "key": 111111111})
+    json_data = request.get_json()
+    email = json_data.get('email')
+    password = json_data.get('password')
+    user = db.session.query(Participant).filter(Participant.email == email).first()
+    if user and user.password_valid(password):
+        user_schema = ParticipantsSchema(exclude=['password'])
+        serialized = user_schema.dump(user)
+        access_token = create_access_token(identity=user.id)
+        serialized.update(dict(access_token=access_token))
+        return jsonify(serialized)
+    return jsonify({"status": "error"})
 
 
 # GET /profile/  – возвращает информацию о профиле пользователя
