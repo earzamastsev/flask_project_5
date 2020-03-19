@@ -1,8 +1,18 @@
 from app import app
 from flask import render_template, jsonify, request, abort
 from schemas import LocationSchema, EventSchema, ParticipantsSchema, TypeSchema
-from models import db, Location, Event, Participant, TypeEvent
+from models import db, Location, Event, Participant, TypeEvent, Category
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
+
+admin = Admin(app)
+
+admin.add_view(ModelView(Location, db.session))
+admin.add_view(ModelView(Event, db.session))
+admin.add_view(ModelView(Participant, db.session))
+admin.add_view((ModelView(TypeEvent, db.session)))
+admin.add_view((ModelView(Category, db.session)))
 
 
 @app.route('/')
