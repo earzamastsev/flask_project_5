@@ -21,7 +21,13 @@ def events():
 
 # POST /enrollments/ – принимает заявку на участие в событии
 @app.route('/enrollments/', methods=['POST'])
-def enrollments():
+def enrollments_add():
+    return jsonify({"status": "success"})
+
+
+# DELETE /enrollments/ id=<eventid> – отзывает заявку на участие в событии
+@app.route('/enrollments/', methods=['DELETE'])
+def enrollments_del():
     return jsonify({"status": "success"})
 
 
