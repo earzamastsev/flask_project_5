@@ -37,7 +37,7 @@ class Event(db.Model):
     description = db.Column(db.String(512), nullable=False)
     date = db.Column(db.DateTime(), nullable=False)
     time = db.Column(db.DateTime(), nullable=False)
-    types = db.relationship('Type',
+    types = db.relationship('TypeEvent',
                             secondary=events_types,
                             lazy='subquery',
                             backref=db.backref('events', lazy=True))
@@ -47,8 +47,7 @@ class Event(db.Model):
                                  backref=db.backref('events', lazy=True))
     locations = db.relationship('Location',
                                 secondary=events_locs,
-                                lazy='subquery',
-                                backref=db.backref('events', lazy=True))
+                                back_populates='events')
     address = db.Column(db.String(128), nullable=False)
     seats = db.Column(db.Integer(), nullable=False)
     participants = db.relationship('Participant',
@@ -75,6 +74,9 @@ class Location(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     code = db.Column(db.String(16), nullable=False)
     title = db.Column(db.String(128), nullable=False)
+    events = db.relationship('Event',
+                             secondary=events_locs,
+                             back_populates='locations')
 
 
 # Таблица Category – категории эвентов
@@ -86,7 +88,7 @@ class Category(db.Model):
 
 
 # Таблица Type – типы эвентов
-class Type(db.Model):
+class TypeEvent(db.Model):
     __tablename__ = 'types'
     id = db.Column(db.Integer(), primary_key=True)
     code = db.Column(db.String(16), nullable=False)
