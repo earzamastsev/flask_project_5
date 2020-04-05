@@ -1,5 +1,5 @@
 from app import app
-from flask import render_template, jsonify, request, abort
+from flask import jsonify, request, abort
 from schemas import LocationSchema, EventSchema, ParticipantsSchema, TypeSchema
 from models import db, Location, Event, Participant, TypeEvent, Category
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -51,10 +51,14 @@ def enrollments_add():
     user = db.session.query(Participant).get(get_jwt_identity())
     json_data = request.get_json()
     event = db.session.query(Event).get_or_404(json_data['id'])
-    event.participants.append(user)
-    db.session.commit()
-    return jsonify({"status": "success"})
-
+    if user in event.participants:
+        return jsonify({"error": "You already registered"}), 400
+    if event.seats > len(event.participants):
+        event.participants.append(user)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"error": "Not enough seats"}), 400
 
 # GET /enrollments/<enrollment_ID> - выводит список зарегистрированных пользователей на эвент
 @app.route('/enrollments/<int:id>/')
@@ -96,9 +100,10 @@ def enrollments_del():
 @app.route('/register/', methods=['POST'])
 def register():
     json_data = request.get_json()
+    print(json_data)
     if json_data:
         if db.session.query(Participant).filter(Participant.email == json_data.get('email')).first():
-            return jsonify({"status": "error"})
+            return jsonify({"status": "Already exists"})
         user = Participant(**json_data)
         try:
             db.session.add(user)
@@ -108,8 +113,8 @@ def register():
         usershema = ParticipantsSchema()
         serialized = usershema.dump(user)
         serialized.update(dict(password=json_data.get('password')))
-        return jsonify(serialized)
-    return jsonify({"status": "error1"}), 500
+        return jsonify(serialized), 201
+    return jsonify({"status": "error"}), 500
 
 
 # POST /auth/ – проводит аутентификацию пользователя
@@ -127,7 +132,8 @@ def auth():
         access_token = create_access_token(identity=user.id)
         serialized.update(dict(access_token=access_token))
         return jsonify(serialized)
-    return jsonify({"status": "error"})
+    else:
+        return jsonify({"error": "Wrong password"}), 400
 
 
 # GET /profile/  – возвращает информацию о профиле пользователя
