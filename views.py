@@ -55,7 +55,10 @@ def enrollments_add():
         return jsonify({"error": "You already registered"}), 400
     if event.seats > len(event.participants):
         event.participants.append(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except:
+            return abort(404)
         return jsonify({"status": "success"})
     else:
         return jsonify({"error": "Not enough seats"}), 400
@@ -90,7 +93,10 @@ def enrollments_del():
     event = db.session.query(Event).get_or_404(json_data['id'])
     if user in event.participants:
         event.participants.remove(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except:
+            return abort(404)
     else:
         return abort(404)
     return jsonify({"status": "success"})
@@ -100,14 +106,16 @@ def enrollments_del():
 @app.route('/register/', methods=['POST'])
 def register():
     json_data = request.get_json()
-    print(json_data)
     if json_data:
         if db.session.query(Participant).filter(Participant.email == json_data.get('email')).first():
             return jsonify({"status": "Already exists"})
         user = Participant(**json_data)
         try:
             db.session.add(user)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except:
+                return abort(404)
         except:
             return jsonify({"status": "error"})
         usershema = ParticipantsSchema()
